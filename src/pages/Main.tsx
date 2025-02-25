@@ -193,23 +193,39 @@ function Main() {
   const [animate, setAnimate] = useState(false);
   const [animateDirection, setAnimateDirection] = useState('none');
   const [boxIsFull, setBoxIsFull] = useState(false);
-  const handleAddToCart = () => {
-    setAnimateDirection('right');
-    setCart((prevCart) => [...prevCart, itemsForSale[currItemIndex]]);
-    setCurrItemIndex((currItemIndex) => currItemIndex + 1);
-    setCount((count) => count + 1);
-  };
+    const [isCompletionPage, setIsCompletionPage] = useState(false);
+    const handleAddToCart = () => {
+      setAnimateDirection('right');
+      setCart((prevCart) => [...prevCart, itemsForSale[currItemIndex]]);
+      setCurrItemIndex((currItemIndex) => currItemIndex + 1);
+      setCount((count) => count + 1);
+    };
 
-  useEffect(() => {
-    if (cart.reduce((acc, item) => acc + item.value, 0) > BOX_VALUE) {
-      setIsReadyToPay(true);
-      setBoxIsFull(true);
-    }
+    useEffect(() => {
+      if (cart.reduce((acc, item) => acc + item.value, 0) > BOX_VALUE) {
+        setIsReadyToPay(true);
+        setBoxIsFull(true);
+      }
 
-    if (count >= MAX_LIMIT || count >= itemsForSale.length) {
-      setLimitReached(true);
+      if (count >= MAX_LIMIT || count >= itemsForSale.length) {
+        setLimitReached(true);
+      }
+    }, [cart, count]);
+
+    useEffect(() => {
+      //check if url has /completion in it
+      //if it does, set isReadyToPay to true
+
+      if (window.location.pathname === '/completion') {
+        setIsCompletionPage(true);
+      } else {
+        console.log('NO', window.location.pathname);
+      }
+    }, []);
+
+    if (isCompletionPage) {
+      return <MainWrapper>Your payment is successful!</MainWrapper>;
     }
-  }, [cart, count]);
 
   const Main = () => (
     <MainWrapper>

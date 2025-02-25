@@ -10,6 +10,7 @@ import {
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js';
+import CheckoutForm from './CheckoutForm';
 import { Item } from '../types';
 
 type PaymentPageProps = {
@@ -177,7 +178,8 @@ const ALL_STATES = [
 export default function PaymentPage({ cart, boxIsFull }: PaymentPageProps) {
   const [confirmReset, setConfirmReset] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
-  const stripePromise = loadStripe('pk_test_6pRNASCoBOKtIshFeQd4XMUh');
+  const [stripePromise, setStripePromise] = useState(null);
+  const [clientSecret, setClientSecret] = useState('');
 
   useEffect(() => {
     setIsLoading(true);
@@ -186,23 +188,23 @@ export default function PaymentPage({ cart, boxIsFull }: PaymentPageProps) {
     }, 500);
   }, []);
 
-  const options = {
-    mode: 'payment',
-    amount: 2000,
-    currency: 'usd',
-    shipping_address_collection: {
-      allowed_countries: ['US', 'CA'],
-    },
-    appearance: {},
-    fields: {
-      billingDetails: {
-        address: 'auto',
-      },
-      shippingDetails: {
-        address: 'auto',
-      },
-    },
-  };
+  useEffect(() => {
+    fetch('http://localhost:5252/config').then(async (r) => {
+      const { publishableKey } = await r.json();
+      setStripePromise(loadStripe(publishableKey));
+    });
+  }, []);
+
+  useEffect(() => {
+    fetch('http://localhost:5252/create-payment-intent', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }).then(async (result) => {
+      const { clientSecret } = await result.json();
+      console.log('client secret', clientSecret);
+      setClientSecret(clientSecret);
+    });
+  }, []);
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -247,11 +249,11 @@ export default function PaymentPage({ cart, boxIsFull }: PaymentPageProps) {
         {' '}
         Total Amount: <b>$20</b>
       </Total>
-      <Elements stripe={stripePromise} options={options}>
-        <form onSubmit={() => {}}>
-          <PaymentElement />
-        </form>
-      </Elements>
+      {clientSecret && stripePromise && (
+        <Elements stripe={stripePromise} options={{ clientSecret }}>
+          <CheckoutForm />
+        </Elements>
+      )}
       <ButtonWrapper>
         {' '}
         <PayButton disabled> Get Package</PayButton>
