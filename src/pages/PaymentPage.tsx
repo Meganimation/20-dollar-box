@@ -210,15 +210,32 @@ export default function PaymentPage({ cart, boxIsFull }: PaymentPageProps) {
     return <div>Loading...</div>;
   }
 
+const removeItemFromServer = () => {
+  fetch("http://localhost:5252/removeAll", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ cart }),
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      console.log("Item removed from store:", data);
+    })
+    .catch((error) => {
+      console.error("Error removing item:", error);
+    });
+};
+
   return (
     <Box>
       <IconWrapper>
         <UnarchiveIcon />
       </IconWrapper>
       <div>
-        {' '}
-        The box {boxIsFull ? 'is now full with ' : 'contains '}
-        <b>{cart.length}</b> {cart.length === 1 ? 'item' : 'items'} <br /> It
+        {" "}
+        The box {boxIsFull ? "is now full with " : "contains "}
+        <b>{cart.length}</b> {cart.length === 1 ? "item" : "items"} <br /> It
         can be shipped anywhere in America in exchange for $20.
       </div>
 
@@ -246,7 +263,7 @@ export default function PaymentPage({ cart, boxIsFull }: PaymentPageProps) {
         </div>
       </Flex>
       <Total>
-        {' '}
+        {" "}
         Total Amount: <b>$20</b>
       </Total>
       {clientSecret && stripePromise && (
@@ -255,7 +272,7 @@ export default function PaymentPage({ cart, boxIsFull }: PaymentPageProps) {
         </Elements>
       )}
       <ButtonWrapper>
-        {' '}
+        {" "}
         <PayButton disabled> Get Package</PayButton>
         {!confirmReset ? (
           <BackButton
@@ -263,7 +280,7 @@ export default function PaymentPage({ cart, boxIsFull }: PaymentPageProps) {
               setConfirmReset(true);
             }}
           >
-            {' '}
+            {" "}
             Delete this and try again
           </BackButton>
         ) : (
@@ -273,10 +290,18 @@ export default function PaymentPage({ cart, boxIsFull }: PaymentPageProps) {
             }}
             danger
           >
-            {' '}
+            {" "}
             Are you sure?
           </BackButton>
         )}
+        <button
+          onClick={() => {
+            removeItemFromServer();
+          }}
+        >
+          {" "}
+          pretend buy
+        </button>
       </ButtonWrapper>
     </Box>
   );

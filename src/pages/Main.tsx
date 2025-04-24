@@ -1,12 +1,9 @@
 import { useState, useEffect } from 'react';
-import { faker } from '@faker-js/faker';
-import { Item } from '../types';
-import PaymentPage from './PaymentPage';
-import LimitReachedPage from './LimitReachedPage';
-import styled, { keyframes } from 'styled-components';
-import Image from '../assets/image.png';
-import BackgroundImage from '../assets/paper-background.jpg';
-import { itemsForSale } from '../data/Data';
+import { Item } from "../types/types";
+import PaymentPage from "./PaymentPage";
+import LimitReachedPage from "./LimitReachedPage";
+import styled, { keyframes } from "styled-components";
+import BackgroundImage from "../assets/paper-background.jpg";
 
 //itemsForSale
 //name
@@ -59,12 +56,11 @@ const Flex = styled.div`
 const FadeIn = keyframes`
     from {
         opacity: 0;
-
     }
     to {
         opacity: 1;
     }
-    `;
+`;
 
 const FadeLeft = keyframes`
     from {
@@ -75,7 +71,8 @@ const FadeLeft = keyframes`
         opacity: 0;
         transform: translateX(100%);
     }
-    `;
+`;
+
 const FadeRight = keyframes`
     from {
         opacity: 1;
@@ -85,18 +82,7 @@ const FadeRight = keyframes`
         opacity: 0;
         transform: translateX(-200%);
     }
-    `;
-
-const FadeUp = keyframes`
-    from {
-        opacity: 1;
-        transform: translateY(0);
-    }
-    to {
-        opacity: 0;
-        transform: translateY(-100%);
-    }
-    `;
+`;
 
 const FadeDown = keyframes`
     from {
@@ -107,9 +93,9 @@ const FadeDown = keyframes`
         opacity: 1;
         transform: translateY(0);
     }
-    `;
+`;
 
-const Card = styled.div<{ animate: boolean; animateDirection: string }>`
+const Card = styled.div<{ animateDirection: string }>`
   display: flex;
   background-image: url(${BackgroundImage});
   background-size: cover;
@@ -117,18 +103,16 @@ const Card = styled.div<{ animate: boolean; animateDirection: string }>`
   align-items: center;
   justify-content: center;
   padding: 0px;
-
   min-height: 450px;
   height: 50%;
   border-radius: 20px;
   margin-bottom: 20px;
   backdrop-filter: blur(5px);
   width: 40%;
-
   animation: ${(props) =>
-      props.animateDirection === 'none'
+      props.animateDirection === "none"
         ? FadeDown
-        : props.animateDirection === 'left'
+        : props.animateDirection === "left"
         ? FadeLeft
         : FadeRight}
     0.5s;
@@ -178,11 +162,7 @@ const Button = styled.button`
 //   });
 // }
 const SHIPPING_COSTS = 7;
-const MAX_LIMIT = Math.min(20, itemsForSale.length - 1);
-
 const BOX_VALUE = 20 - SHIPPING_COSTS;
-
-itemsForSale.sort(() => Math.random() - 0.5);
 
 function Main() {
   const [count, setCount] = useState(0);
@@ -190,42 +170,91 @@ function Main() {
   const [currItemIndex, setCurrItemIndex] = useState(0);
   const [limitReached, setLimitReached] = useState(false);
   const [isReadyToPay, setIsReadyToPay] = useState(false);
-  const [animate, setAnimate] = useState(false);
-  const [animateDirection, setAnimateDirection] = useState('none');
+  const [animateDirection, setAnimateDirection] = useState("none");
   const [boxIsFull, setBoxIsFull] = useState(false);
-    const [isCompletionPage, setIsCompletionPage] = useState(false);
-    const handleAddToCart = () => {
-      setAnimateDirection('right');
-      setCart((prevCart) => [...prevCart, itemsForSale[currItemIndex]]);
-      setCurrItemIndex((currItemIndex) => currItemIndex + 1);
-      setCount((count) => count + 1);
-    };
+  const [isCompletionPage, setIsCompletionPage] = useState(false);
+  const [itemsForSale, setItemsForSale] = useState<Item[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-      if (cart.reduce((acc, item) => acc + item.value, 0) > BOX_VALUE) {
-        setIsReadyToPay(true);
-        setBoxIsFull(true);
-      }
+  useEffect(() => {
+    // Fetch items from the backend
+    fetch("http://localhost:5252/store")
+      .then((response) => response.json())
+      .then((data) => {
+        // Randomize the array
+        const randomizedData = [...data].sort(() => Math.random() - 0.5);
+        setItemsForSale(randomizedData);
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching items:", error);
+        setIsLoading(false);
+      });
+  }, []);
 
+  const MAX_LIMIT = !itemsForSale.length
+    ? 1
+    : Math.min(20, itemsForSale.length - 1);
+
+  const handleAddToCart = () => {
+    setAnimateDirection("right");
+    setCart((prevCart) => [...prevCart, itemsForSale[currItemIndex]]);
+    setCurrItemIndex((currItemIndex) => currItemIndex + 1);
+    setCount((count) => count + 1);
+
+    // //remove item from store using /remove endpoint
+
+    // fetch("http://localhost:5252/remove", {
+    //   method: "POST",
+    //   headers: {
+    //     "Content-Type": "application/json",
+    //   },
+    //   body: JSON.stringify({ id: itemsForSale[currItemIndex].id }),
+    // })
+    //   .then((response) => response.json())
+    //   .then((data) => {
+    //     console.log("Item removed from store:", data);
+    //   })
+    //   .catch((error) => {
+    //     console.error("Error removing item:", error);
+    //   });
+  };
+
+  useEffect(() => {
+    if (cart.reduce((acc, item) => acc + item.value, 0) > BOX_VALUE) {
+      setIsReadyToPay(true);
+      setBoxIsFull(true);
+    }
+    console.log("count", count);
+    console.log("itemsForSale.length", itemsForSale.length);
+    console.log("cart", cart);
+    console.log("max limit", MAX_LIMIT);
+    if (itemsForSale.length > 0) {
       if (count >= MAX_LIMIT || count >= itemsForSale.length) {
         setLimitReached(true);
       }
-    }, [cart, count]);
-
-    useEffect(() => {
-      //check if url has /completion in it
-      //if it does, set isReadyToPay to true
-
-      if (window.location.pathname === '/completion') {
-        setIsCompletionPage(true);
-      } else {
-        console.log('NO', window.location.pathname);
-      }
-    }, []);
-
-    if (isCompletionPage) {
-      return <MainWrapper>Your payment is successful!</MainWrapper>;
     }
+  }, [cart, count, itemsForSale]);
+
+  useEffect(() => {
+    if (window.location.pathname === "/completion") {
+      setIsCompletionPage(true);
+    }
+  }, []);
+
+  if (isLoading) {
+    return <MainWrapper>Loading items...</MainWrapper>;
+  }
+
+  if (isCompletionPage) {
+    return <MainWrapper>Your payment is successful!</MainWrapper>;
+  }
+
+  if (itemsForSale.length === 0) {
+    return <MainWrapper>No items available</MainWrapper>;
+  }
+
+  console.log("itemsForSale", itemsForSale);
 
   const Main = () => (
     <MainWrapper>
@@ -241,10 +270,11 @@ function Main() {
         <b> {itemsForSale[currItemIndex].name}</b>
       </CardTitle>
       <CardWrapper>
-        <Card animate={animate} animateDirection={animateDirection}>
-          {/* <div>{itemsForSale[currItemIndex].value}</div> */}
+        <Card animateDirection={animateDirection}>
           <ScaledImage>
-            <img src={itemsForSale[currItemIndex].image} />
+            <img
+              src={"http://localhost:5252" + itemsForSale[currItemIndex].image}
+            />
           </ScaledImage>
         </Card>
         <Question>
@@ -252,23 +282,14 @@ function Main() {
           your box?
         </Question>
         <Flex>
-          {' '}
+          <Button onClick={handleAddToCart}>Go on then.</Button>
           <Button
             onClick={() => {
-              handleAddToCart();
-            }}
-          >
-            {' '}
-            Go on then.
-          </Button>
-          <Button
-            onClick={() => {
-              setAnimateDirection('left');
+              setAnimateDirection("left");
               setCurrItemIndex((currItemIndex) => currItemIndex + 1);
               setCount((count) => count + 1);
             }}
           >
-            {' '}
             Nah.
           </Button>
         </Flex>
@@ -279,7 +300,6 @@ function Main() {
   if (isReadyToPay) {
     return (
       <MainWrapper>
-        {' '}
         <PaymentPage cart={cart} boxIsFull={boxIsFull} />
       </MainWrapper>
     );
