@@ -1,17 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import BackgroundImage from '../assets/paper-background.jpg';
 import UnarchiveIcon from '@mui/icons-material/Unarchive';
+import type { Stripe } from '@stripe/stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
-import { TextField, Input } from '@mui/material';
-import {
-  PaymentElement,
-  Elements,
-  useStripe,
-  useElements,
-} from '@stripe/react-stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
 import CheckoutForm from './CheckoutForm';
-import { Item } from '../types';
+import type { Item } from '../types/types';
+import { apiUrl } from '../lib/api';
 
 type PaymentPageProps = {
   cart: Item[];
@@ -68,7 +63,7 @@ const PayButton = styled.button<{ disabled: boolean }>`
   cursor: ${(props) => (props.disabled ? 'not-allowed' : 'pointer')};
 `;
 
-const BackButton = styled.button<{ danger: true }>`
+const BackButton = styled.button<{ danger?: boolean }>`
   background-color: white;
   color: ${(props) => (props.danger ? 'red' : 'black')};
   padding: 10px;
@@ -114,7 +109,6 @@ const Select = styled.select`
 
 const Label = styled.div`
   text-align: left;
-
   font-size: 0.9rem;
 `;
 
@@ -178,31 +172,33 @@ const ALL_STATES = [
 export default function PaymentPage({ cart, boxIsFull }: PaymentPageProps) {
   const [confirmReset, setConfirmReset] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [stripePromise, setStripePromise] = useState(null);
+  const [stripePromise, setStripePromise] =
+    useState<Promise<Stripe | null> | null>(null);
   const [clientSecret, setClientSecret] = useState('');
 
   useEffect(() => {
     setIsLoading(true);
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setIsLoading(false);
     }, 500);
+
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    fetch('http://localhost:5252/config').then(async (r) => {
+    fetch(apiUrl('/config')).then(async (r) => {
       const { publishableKey } = await r.json();
       setStripePromise(loadStripe(publishableKey));
     });
   }, []);
 
   useEffect(() => {
-    fetch('http://localhost:5252/create-payment-intent', {
+    fetch(apiUrl('/create-payment-intent'), {
       method: 'POST',
       body: JSON.stringify({}),
     }).then(async (result) => {
-      const { clientSecret } = await result.json();
-      console.log('client secret', clientSecret);
-      setClientSecret(clientSecret);
+      const { clientSecret: secret } = await result.json();
+      setClientSecret(secret);
     });
   }, []);
 
@@ -210,22 +206,17 @@ export default function PaymentPage({ cart, boxIsFull }: PaymentPageProps) {
     return <div>Loading...</div>;
   }
 
-const removeItemFromServer = () => {
-  fetch("http://localhost:5252/removeAll", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ cart }),
-  })
-    .then((response) => response.json())
-    .then((data) => {
-      console.log("Item removed from store:", data);
-    })
-    .catch((error) => {
-      console.error("Error removing item:", error);
+  const removeItemFromServer = () => {
+    fetch(apiUrl('/removeAll'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ cart }),
+    }).catch((error) => {
+      console.error('Error removing item:', error);
     });
-};
+  };
 
   return (
     <Box>
@@ -233,13 +224,11 @@ const removeItemFromServer = () => {
         <UnarchiveIcon />
       </IconWrapper>
       <div>
-        {" "}
-        The box {boxIsFull ? "is now full with " : "contains "}
-        <b>{cart.length}</b> {cart.length === 1 ? "item" : "items"} <br /> It
+        The box {boxIsFull ? 'is now full with ' : 'contains '}
+        <b>{cart.length}</b> {cart.length === 1 ? 'item' : 'items'} <br /> It
         can be shipped anywhere in America in exchange for $20.
       </div>
 
-      {/* //TODO: ADD address */}
       <CutWidth>
         <Label>Street Name</Label>
         <Input placeholder="1234 Package Lane" />
@@ -256,14 +245,15 @@ const removeItemFromServer = () => {
           <InputWrapper>
             <Select>
               {ALL_STATES.map((state) => (
-                <option value={state}>{state}</option>
+                <option key={state} value={state}>
+                  {state}
+                </option>
               ))}
             </Select>
           </InputWrapper>
         </div>
       </Flex>
       <Total>
-        {" "}
         Total Amount: <b>$20</b>
       </Total>
       {clientSecret && stripePromise && (
@@ -272,15 +262,13 @@ const removeItemFromServer = () => {
         </Elements>
       )}
       <ButtonWrapper>
-        {" "}
-        <PayButton disabled> Get Package</PayButton>
+        <PayButton disabled>Get Package</PayButton>
         {!confirmReset ? (
           <BackButton
             onClick={() => {
               setConfirmReset(true);
             }}
           >
-            {" "}
             Delete this and try again
           </BackButton>
         ) : (
@@ -290,7 +278,6 @@ const removeItemFromServer = () => {
             }}
             danger
           >
-            {" "}
             Are you sure?
           </BackButton>
         )}
@@ -299,7 +286,6 @@ const removeItemFromServer = () => {
             removeItemFromServer();
           }}
         >
-          {" "}
           pretend buy
         </button>
       </ButtonWrapper>

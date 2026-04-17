@@ -111,7 +111,7 @@ const itemsForSale = [
   {
     id: 16,
     name: 'Ren Miniature Figurine',
-    image: '/images/renFig.png',
+    image: '/images/RenFig.png',
     value: 3,
     quantity: 1,
   },

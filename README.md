@@ -1,50 +1,65 @@
-# React + TypeScript + Vite
+# 20 Dollar Box
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite frontend with an Express + Stripe backend.
 
-Currently, two official plugins are available:
+## Environment
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Frontend
 
-## Expanding the ESLint configuration
+Copy `.env.example` to `.env` if you need to override the API host:
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
-
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```bash
+cp .env.example .env
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+- `VITE_API_BASE_URL` (optional): full backend origin (for split frontend/backend deployments). Leave empty when frontend and backend are served from the same host.
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
+### Backend
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+Copy `server/.env.sample` to `server/.env` and fill Stripe keys:
+
+```bash
+cp server/.env.sample server/.env
 ```
+
+Required:
+- `STRIPE_PUBLISHABLE_KEY`
+- `STRIPE_SECRET_KEY`
+
+Optional:
+- `PORT` (default `5252`)
+- `STATIC_DIR` (default `../dist`)
+- `CORS_ORIGIN` (set this in production if frontend is hosted on another domain)
+
+## Local development
+
+```bash
+npm ci
+cd server && npm ci && cd ..
+```
+
+Run frontend:
+
+```bash
+npm run dev
+```
+
+Run backend:
+
+```bash
+cd server && npm start
+```
+
+## Production deployment
+
+1. Build frontend:
+   ```bash
+   npm run build
+   ```
+2. Configure `server/.env` for production keys and host settings.
+3. Start backend:
+   ```bash
+   cd server && npm start
+   ```
+
+The backend serves both `/public` assets and the built frontend from `STATIC_DIR`.

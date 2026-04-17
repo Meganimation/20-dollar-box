@@ -2,44 +2,67 @@ const express = require('express');
 const app = express();
 const { resolve } = require('path');
 const cors = require('cors');
-const { itemsForSale, soldItems } = require("./data");
+const { itemsForSale, soldItems } = require('./data');
 
-app.use(cors()); // Enable CORS for all routes
-// Replace if using a different env file or config
-const env = require("dotenv").config({ path: "./.env" });
+require('dotenv').config({ path: './.env' });
 
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2022-08-01",
+const requiredEnvVars = ['STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY'];
+const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
+if (missingEnvVars.length > 0) {
+  throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+}
+
+const port = Number(process.env.PORT || 5252);
+const staticDir = process.env.STATIC_DIR || resolve(__dirname, '..', 'dist');
+const corsOrigin = process.env.CORS_ORIGIN;
+
+app.disable('x-powered-by');
+app.use(
+  cors(
+    corsOrigin
+      ? {
+          origin: corsOrigin,
+        }
+      : undefined
+  )
+);
+
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2022-08-01',
 });
 
 // Serve static files from the public directory
-app.use(express.static("public"));
-app.use(express.static(process.env.STATIC_DIR));
-app.use(express.json());
+app.use(express.static('public'));
+app.use(express.static(staticDir));
+app.use(express.json({ limit: '100kb' }));
 
-app.get("/", (req, res) => {
-  const path = resolve(process.env.STATIC_DIR + "/index.html");
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
+app.get('/', (req, res) => {
+  const path = resolve(staticDir, 'index.html');
   res.sendFile(path);
 });
 
-app.get("/config", (req, res) => {
+app.get('/config', (req, res) => {
   res.send({
     publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
   });
 });
 
 //get the items from the store
-app.get("/store", (req, res) => {
+app.get('/store', (req, res) => {
   res.send(itemsForSale);
 });
 
 //get the sold items
-app.get("/sold", (req, res) => {
+app.get('/sold', (req, res) => {
   res.send(soldItems);
 });
 
 //remove item from the store
-app.post("/remove", (req, res) => {
+app.post('/remove', (req, res) => {
   const { id } = req.body;
   const index = itemsForSale.findIndex((item) => item.id === id);
   if (index !== -1) {
@@ -50,12 +73,16 @@ app.post("/remove", (req, res) => {
 });
 
 //move the array of items from the store to sold
-app.post("/removeAll", (req, res) => {
-  console.log("req.body", req.body);
+app.post('/removeAll', (req, res) => {
   const { cart } = req.body;
+  if (!Array.isArray(cart)) {
+    return res.status(400).send({ error: 'cart must be an array' });
+  }
+
   //build a set of cart ids for O(1) lookup
-  const cartIdSet = new Set(cart.map((item) => item.id));
-  console.log("cartIds", [...cartIdSet]);
+  const cartIdSet = new Set(
+    cart.map((item) => item?.id).filter((id) => Number.isInteger(id))
+  );
   //iterate itemsForSale once and move matching items to soldItems
   let i = itemsForSale.length - 1;
   while (i >= 0) {
@@ -89,6 +116,4 @@ app.post('/create-payment-intent', async (req, res) => {
   }
 });
 
-app.listen(5252, () =>
-  console.log(`Node server listening at http://localhost:5252`)
-);
+app.listen(port, () => console.log(`Node server listening at http://localhost:${port}`));
