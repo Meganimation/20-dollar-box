@@ -16,6 +16,8 @@ Optional:
 - `PORT` (default `5252`)
 - `STATIC_DIR` (default `../dist`)
 - `CORS_ORIGIN` (frontend origin when hosted separately)
+- `RATE_LIMIT_WINDOW_MS` (default `60000`)
+- `RATE_LIMIT_MAX_REQUESTS` (default `120`)
 
 ## Run
 

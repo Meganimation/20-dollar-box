@@ -186,20 +186,34 @@ export default function PaymentPage({ cart, boxIsFull }: PaymentPageProps) {
   }, []);
 
   useEffect(() => {
-    fetch(apiUrl('/config')).then(async (r) => {
-      const { publishableKey } = await r.json();
-      setStripePromise(loadStripe(publishableKey));
-    });
+    fetch(apiUrl('/config'))
+      .then(async (r) => {
+        if (!r.ok) {
+          throw new Error('Unable to load Stripe config');
+        }
+        const { publishableKey } = await r.json();
+        setStripePromise(loadStripe(publishableKey));
+      })
+      .catch((error) => {
+        console.error(error);
+      });
   }, []);
 
   useEffect(() => {
     fetch(apiUrl('/create-payment-intent'), {
       method: 'POST',
       body: JSON.stringify({}),
-    }).then(async (result) => {
-      const { clientSecret: secret } = await result.json();
-      setClientSecret(secret);
-    });
+    })
+      .then(async (result) => {
+        if (!result.ok) {
+          throw new Error('Unable to create payment intent');
+        }
+        const { clientSecret: paymentClientSecret } = await result.json();
+        setClientSecret(paymentClientSecret);
+      })
+      .catch((error) => {
+        console.error(error);
+      });
   }, []);
 
   if (isLoading) {

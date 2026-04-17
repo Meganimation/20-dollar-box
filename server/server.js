@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const { resolve } = require('path');
 const cors = require('cors');
+const { rateLimit } = require('express-rate-limit');
 const { itemsForSale, soldItems } = require('./data');
 
 require('dotenv').config({ path: './.env' });
@@ -15,6 +16,15 @@ if (missingEnvVars.length > 0) {
 const port = Number(process.env.PORT || 5252);
 const staticDir = process.env.STATIC_DIR || resolve(__dirname, '..', 'dist');
 const corsOrigin = process.env.CORS_ORIGIN;
+const rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000);
+const rateLimitMaxRequests = Number(process.env.RATE_LIMIT_MAX_REQUESTS || 120);
+const apiLimiter = rateLimit({
+  windowMs: rateLimitWindowMs,
+  limit: rateLimitMaxRequests,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many requests' },
+});
 
 app.disable('x-powered-by');
 app.use(
@@ -40,7 +50,7 @@ app.get('/healthz', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-app.get('/', (req, res) => {
+app.get('/', apiLimiter, (req, res) => {
   const path = resolve(staticDir, 'index.html');
   res.sendFile(path);
 });
@@ -62,7 +72,7 @@ app.get('/sold', (req, res) => {
 });
 
 //remove item from the store
-app.post('/remove', (req, res) => {
+app.post('/remove', apiLimiter, (req, res) => {
   const { id } = req.body;
   const index = itemsForSale.findIndex((item) => item.id === id);
   if (index !== -1) {
@@ -73,16 +83,25 @@ app.post('/remove', (req, res) => {
 });
 
 //move the array of items from the store to sold
-app.post('/removeAll', (req, res) => {
+app.post('/removeAll', apiLimiter, (req, res) => {
   const { cart } = req.body;
   if (!Array.isArray(cart)) {
     return res.status(400).send({ error: 'cart must be an array' });
   }
 
   //build a set of cart ids for O(1) lookup
-  const cartIdSet = new Set(
-    cart.map((item) => item?.id).filter((id) => Number.isInteger(id))
-  );
+  const availableIds = new Set(itemsForSale.map((item) => item.id));
+  const cartIds = cart.map((item) => item?.id);
+  if (cartIds.some((id) => !Number.isInteger(id))) {
+    return res.status(400).send({ error: 'cart contains invalid item id' });
+  }
+
+  const cartIdSet = new Set(cartIds);
+  for (const id of cartIdSet) {
+    if (!availableIds.has(id)) {
+      return res.status(400).send({ error: 'cart contains unknown item id' });
+    }
+  }
   //iterate itemsForSale once and move matching items to soldItems
   let i = itemsForSale.length - 1;
   while (i >= 0) {
@@ -95,7 +114,7 @@ app.post('/removeAll', (req, res) => {
   res.send(itemsForSale);
 });
 
-app.post('/create-payment-intent', async (req, res) => {
+app.post('/create-payment-intent', apiLimiter, async (req, res) => {
   try {
     const paymentIntent = await stripe.paymentIntents.create({
       currency: 'USD',

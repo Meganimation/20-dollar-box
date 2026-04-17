@@ -30,6 +30,8 @@ Optional:
 - `PORT` (default `5252`)
 - `STATIC_DIR` (default `../dist`)
 - `CORS_ORIGIN` (set this in production if frontend is hosted on another domain)
+- `RATE_LIMIT_WINDOW_MS` (default `60000`)
+- `RATE_LIMIT_MAX_REQUESTS` (default `120`)
 
 ## Local development
 
