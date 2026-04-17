@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 const { resolve } = require('path');
 const cors = require('cors');
-const { itemsForSale } = require("./data");
+const { itemsForSale, soldItems } = require("./data");
 
 app.use(cors()); // Enable CORS for all routes
 // Replace if using a different env file or config
@@ -33,29 +33,38 @@ app.get("/store", (req, res) => {
   res.send(itemsForSale);
 });
 
+//get the sold items
+app.get("/sold", (req, res) => {
+  res.send(soldItems);
+});
+
 //remove item from the store
 app.post("/remove", (req, res) => {
   const { id } = req.body;
   const index = itemsForSale.findIndex((item) => item.id === id);
   if (index !== -1) {
-    itemsForSale.splice(index, 1);
+    const [item] = itemsForSale.splice(index, 1);
+    soldItems.push(item);
   }
   res.send(itemsForSale);
 });
 
-//remove the array of items from the store
+//move the array of items from the store to sold
 app.post("/removeAll", (req, res) => {
   console.log("req.body", req.body);
   const { cart } = req.body;
-  //get cart ids and remove them from the itemsForSale array
-  const cartIds = cart.map((item) => item.id);
-  console.log("cartIds", cartIds);
-  cartIds.forEach((id) => {
-    const index = itemsForSale.findIndex((item) => item.id === id);
-    if (index !== -1) {
-      itemsForSale.splice(index, 1);
+  //build a set of cart ids for O(1) lookup
+  const cartIdSet = new Set(cart.map((item) => item.id));
+  console.log("cartIds", [...cartIdSet]);
+  //iterate itemsForSale once and move matching items to soldItems
+  let i = itemsForSale.length - 1;
+  while (i >= 0) {
+    if (cartIdSet.has(itemsForSale[i].id)) {
+      const [item] = itemsForSale.splice(i, 1);
+      soldItems.push(item);
     }
-  });
+    i--;
+  }
   res.send(itemsForSale);
 });
 

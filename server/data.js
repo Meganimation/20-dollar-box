@@ -1,5 +1,7 @@
 // Data file containing items for sale
 
+const soldItems = [];
+
 const itemsForSale = [
   {
     id: 1,
@@ -263,5 +265,6 @@ const itemsForSale = [
 ];
 
 module.exports = {
-  itemsForSale
+  itemsForSale,
+  soldItems
 }; 
