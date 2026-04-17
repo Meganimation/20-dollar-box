@@ -30,7 +30,7 @@ export default function CheckoutForm() {
     });
 
     if (error?.type === 'card_error' || error?.type === 'validation_error') {
-      setMessage(error.message);
+      setMessage(error.message ?? 'Payment validation failed.');
     } else {
       setMessage('An unexpected error occured.');
     }
