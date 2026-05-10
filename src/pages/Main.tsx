@@ -4,6 +4,7 @@ import PaymentPage from "./PaymentPage";
 import LimitReachedPage from "./LimitReachedPage";
 import styled, { keyframes } from "styled-components";
 import BackgroundImage from "../assets/paper-background.jpg";
+import { apiUrl } from "../lib/api";
 
 //itemsForSale
 //name
@@ -178,7 +179,7 @@ function Main() {
 
   useEffect(() => {
     // Fetch items from the backend
-    fetch("http://localhost:5252/store")
+    fetch(apiUrl("/store"))
       .then((response) => response.json())
       .then((data) => {
         // Randomize the array
@@ -202,22 +203,6 @@ function Main() {
     setCurrItemIndex((currItemIndex) => currItemIndex + 1);
     setCount((count) => count + 1);
 
-    // //remove item from store using /remove endpoint
-
-    // fetch("http://localhost:5252/remove", {
-    //   method: "POST",
-    //   headers: {
-    //     "Content-Type": "application/json",
-    //   },
-    //   body: JSON.stringify({ id: itemsForSale[currItemIndex].id }),
-    // })
-    //   .then((response) => response.json())
-    //   .then((data) => {
-    //     console.log("Item removed from store:", data);
-    //   })
-    //   .catch((error) => {
-    //     console.error("Error removing item:", error);
-    //   });
   };
 
   useEffect(() => {
@@ -225,16 +210,12 @@ function Main() {
       setIsReadyToPay(true);
       setBoxIsFull(true);
     }
-    console.log("count", count);
-    console.log("itemsForSale.length", itemsForSale.length);
-    console.log("cart", cart);
-    console.log("max limit", MAX_LIMIT);
     if (itemsForSale.length > 0) {
       if (count >= MAX_LIMIT || count >= itemsForSale.length) {
         setLimitReached(true);
       }
     }
-  }, [cart, count, itemsForSale]);
+  }, [MAX_LIMIT, cart, count, itemsForSale]);
 
   useEffect(() => {
     if (window.location.pathname === "/completion") {
@@ -254,8 +235,6 @@ function Main() {
     return <MainWrapper>No items available</MainWrapper>;
   }
 
-  console.log("itemsForSale", itemsForSale);
-
   const Main = () => (
     <MainWrapper>
       <div>20DollarPackage.com</div>
@@ -273,7 +252,7 @@ function Main() {
         <Card animateDirection={animateDirection}>
           <ScaledImage>
             <img
-              src={"http://localhost:5252" + itemsForSale[currItemIndex].image}
+              src={apiUrl(itemsForSale[currItemIndex].image)}
             />
           </ScaledImage>
         </Card>
