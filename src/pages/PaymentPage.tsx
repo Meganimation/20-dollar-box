@@ -127,6 +127,8 @@ const InputWrapper = styled.div`
 `;
 
 const HOLD_DURATION_MS = 10 * 60 * 1000;
+const MS_PER_MINUTE = 60_000;
+const MS_PER_SECOND = 1000;
 
 const ALL_STATES = [
   'AL',
@@ -293,8 +295,8 @@ export default function PaymentPage({ cart, boxIsFull, sessionId }: PaymentPageP
     });
   };
 
-  const minutesLeft = Math.floor(remainingMs / 60_000);
-  const secondsLeft = Math.floor((remainingMs % 60_000) / 1000);
+  const minutesLeft = Math.floor(remainingMs / MS_PER_MINUTE);
+  const secondsLeft = Math.floor((remainingMs % MS_PER_MINUTE) / MS_PER_SECOND);
   const timeLeft = `${minutesLeft}:${secondsLeft.toString().padStart(2, '0')}`;
 
   return (

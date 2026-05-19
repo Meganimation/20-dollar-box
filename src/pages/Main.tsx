@@ -172,10 +172,20 @@ const getOrCreateCartSessionId = () => {
     return existingSessionId;
   }
 
-  const newSessionId =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  let newSessionId = `${Date.now()}-session`;
+  if (typeof crypto !== 'undefined') {
+    if (typeof crypto.randomUUID === 'function') {
+      newSessionId = crypto.randomUUID();
+    } else if (typeof crypto.getRandomValues === 'function') {
+      const randomBuffer = new Uint8Array(16);
+      crypto.getRandomValues(randomBuffer);
+      const randomHex = Array.from(randomBuffer, (value) =>
+        value.toString(16).padStart(2, '0')
+      ).join('');
+      newSessionId = randomHex;
+    }
+  }
+
   window.localStorage.setItem(CART_SESSION_KEY, newSessionId);
   return newSessionId;
 };

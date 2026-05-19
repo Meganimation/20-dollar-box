@@ -154,7 +154,7 @@ app.post('/reserve', apiLimiter, (req, res) => {
   return res.send({ success: true, expiresAt });
 });
 
-// reserve item from the store for a specific session
+// backward-compatible reserve endpoint for clients that still call /remove
 app.post('/remove', apiLimiter, (req, res) => {
   releaseExpiredHolds();
   const { id, sessionId } = req.body;
