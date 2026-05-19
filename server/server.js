@@ -19,6 +19,7 @@ const corsOrigin = process.env.CORS_ORIGIN;
 const rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000);
 const rateLimitMaxRequests = Number(process.env.RATE_LIMIT_MAX_REQUESTS || 120);
 const cartHoldDurationMs = 10 * 60 * 1000;
+// Reservation holds are in-memory and reset on server restart.
 const heldItems = new Map();
 const apiLimiter = rateLimit({
   windowMs: rateLimitWindowMs,
@@ -115,7 +116,9 @@ app.get('/cart-hold', apiLimiter, (req, res) => {
     return res.send({ expiresAt: null, remainingMs: 0, heldCount: 0 });
   }
 
-  const expiresAt = Math.min(...heldEntries.map(([, heldItem]) => heldItem.expiresAt));
+  const expiresAt = heldEntries.reduce((lowestExpiry, [, heldItem]) => {
+    return Math.min(lowestExpiry, heldItem.expiresAt);
+  }, Number.POSITIVE_INFINITY);
   const remainingMs = Math.max(expiresAt - Date.now(), 0);
   return res.send({ expiresAt, remainingMs, heldCount: heldEntries.length });
 });

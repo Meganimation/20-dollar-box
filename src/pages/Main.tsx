@@ -172,18 +172,21 @@ const getOrCreateCartSessionId = () => {
     return existingSessionId;
   }
 
-  let newSessionId = `${Date.now()}-session`;
-  if (typeof crypto !== 'undefined') {
-    if (typeof crypto.randomUUID === 'function') {
-      newSessionId = crypto.randomUUID();
-    } else if (typeof crypto.getRandomValues === 'function') {
-      const randomBuffer = new Uint8Array(16);
-      crypto.getRandomValues(randomBuffer);
-      const randomHex = Array.from(randomBuffer, (value) =>
-        value.toString(16).padStart(2, '0')
-      ).join('');
-      newSessionId = randomHex;
-    }
+  if (typeof crypto === 'undefined') {
+    throw new Error('Secure session ID generation is not available in this browser');
+  }
+
+  let newSessionId = '';
+  if (typeof crypto.randomUUID === 'function') {
+    newSessionId = crypto.randomUUID();
+  } else if (typeof crypto.getRandomValues === 'function') {
+    const randomBuffer = new Uint8Array(16);
+    crypto.getRandomValues(randomBuffer);
+    newSessionId = Array.from(randomBuffer, (value) =>
+      value.toString(16).padStart(2, '0')
+    ).join('');
+  } else {
+    throw new Error('Secure session ID generation is not available in this browser');
   }
 
   window.localStorage.setItem(CART_SESSION_KEY, newSessionId);
