@@ -164,8 +164,24 @@ const Button = styled.button`
 // }
 const SHIPPING_COSTS = 7;
 const BOX_VALUE = 20 - SHIPPING_COSTS;
+const CART_SESSION_KEY = 'cartSessionId';
+
+const getOrCreateCartSessionId = () => {
+  const existingSessionId = window.localStorage.getItem(CART_SESSION_KEY);
+  if (existingSessionId) {
+    return existingSessionId;
+  }
+
+  const newSessionId =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  window.localStorage.setItem(CART_SESSION_KEY, newSessionId);
+  return newSessionId;
+};
 
 function Main() {
+  const [sessionId] = useState(getOrCreateCartSessionId);
   const [count, setCount] = useState(0);
   const [cart, setCart] = useState<Item[]>([]);
   const [currItemIndex, setCurrItemIndex] = useState(0);
@@ -197,12 +213,37 @@ function Main() {
     ? 1
     : Math.min(20, itemsForSale.length - 1);
 
-  const handleAddToCart = () => {
-    setAnimateDirection("right");
-    setCart((prevCart) => [...prevCart, itemsForSale[currItemIndex]]);
-    setCurrItemIndex((currItemIndex) => currItemIndex + 1);
-    setCount((count) => count + 1);
+  const handleAddToCart = async () => {
+    const currentItem = itemsForSale[currItemIndex];
+    if (!currentItem) {
+      return;
+    }
 
+    try {
+      const response = await fetch(apiUrl('/reserve'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: currentItem.id, sessionId }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 404 || response.status === 409) {
+          setItemsForSale((previousItems) =>
+            previousItems.filter((item) => item.id !== currentItem.id)
+          );
+        }
+        return;
+      }
+
+      setAnimateDirection("right");
+      setCart((prevCart) => [...prevCart, currentItem]);
+      setCurrItemIndex((currItemIndex) => currItemIndex + 1);
+      setCount((count) => count + 1);
+    } catch (error) {
+      console.error('Error reserving item:', error);
+    }
   };
 
   useEffect(() => {
@@ -235,6 +276,11 @@ function Main() {
     return <MainWrapper>No items available</MainWrapper>;
   }
 
+  const currentItem = itemsForSale[currItemIndex];
+  if (!currentItem) {
+    return <MainWrapper>No items available</MainWrapper>;
+  }
+
   const Main = () => (
     <MainWrapper>
       <div>20DollarPackage.com</div>
@@ -246,18 +292,18 @@ function Main() {
       />
       <CardTitle>
         It's a <br />
-        <b> {itemsForSale[currItemIndex].name}</b>
+        <b> {currentItem.name}</b>
       </CardTitle>
       <CardWrapper>
         <Card animateDirection={animateDirection}>
           <ScaledImage>
             <img
-              src={apiUrl(itemsForSale[currItemIndex].image)}
+              src={apiUrl(currentItem.image)}
             />
           </ScaledImage>
         </Card>
         <Question>
-          Do you want this <b>{`${itemsForSale[currItemIndex].name}`}</b> in
+          Do you want this <b>{`${currentItem.name}`}</b> in
           your box?
         </Question>
         <Flex>
@@ -279,7 +325,7 @@ function Main() {
   if (isReadyToPay) {
     return (
       <MainWrapper>
-        <PaymentPage cart={cart} boxIsFull={boxIsFull} />
+        <PaymentPage cart={cart} boxIsFull={boxIsFull} sessionId={sessionId} />
       </MainWrapper>
     );
   }

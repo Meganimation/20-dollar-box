@@ -11,6 +11,7 @@ import { apiUrl } from '../lib/api';
 type PaymentPageProps = {
   cart: Item[];
   boxIsFull: boolean;
+  sessionId: string;
 };
 
 const IconWrapper = styled.div`
@@ -112,9 +113,20 @@ const Label = styled.div`
   font-size: 0.9rem;
 `;
 
+const CountdownNotice = styled.div`
+  margin: 10px 0;
+  padding: 12px;
+  border-radius: 8px;
+  background-color: #fff3cd;
+  color: #664d03;
+  font-weight: 600;
+`;
+
 const InputWrapper = styled.div`
   width: 100%;
 `;
+
+const HOLD_DURATION_MS = 10 * 60 * 1000;
 
 const ALL_STATES = [
   'AL',
@@ -169,12 +181,14 @@ const ALL_STATES = [
   'WY',
 ];
 
-export default function PaymentPage({ cart, boxIsFull }: PaymentPageProps) {
+export default function PaymentPage({ cart, boxIsFull, sessionId }: PaymentPageProps) {
   const [confirmReset, setConfirmReset] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [stripePromise, setStripePromise] =
     useState<Promise<Stripe | null> | null>(null);
   const [clientSecret, setClientSecret] = useState('');
+  const [holdExpiresAt, setHoldExpiresAt] = useState<number | null>(null);
+  const [remainingMs, setRemainingMs] = useState(HOLD_DURATION_MS);
 
   useEffect(() => {
     setIsLoading(true);
@@ -216,21 +230,72 @@ export default function PaymentPage({ cart, boxIsFull }: PaymentPageProps) {
       });
   }, []);
 
+  useEffect(() => {
+    fetch(apiUrl(`/cart-hold?sessionId=${encodeURIComponent(sessionId)}`))
+      .then(async (result) => {
+        if (!result.ok) {
+          throw new Error('Unable to load reservation hold timer');
+        }
+        const payload = await result.json();
+        if (typeof payload.expiresAt === 'number') {
+          setHoldExpiresAt(payload.expiresAt);
+        } else {
+          setHoldExpiresAt(Date.now() + HOLD_DURATION_MS);
+        }
+      })
+      .catch((error) => {
+        console.error(error);
+        setHoldExpiresAt(Date.now() + HOLD_DURATION_MS);
+      });
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (holdExpiresAt === null) {
+      return undefined;
+    }
+
+    const updateTimer = () => {
+      const nextRemainingMs = Math.max(holdExpiresAt - Date.now(), 0);
+      setRemainingMs(nextRemainingMs);
+      if (nextRemainingMs <= 0) {
+        window.location.reload();
+      }
+    };
+
+    updateTimer();
+    const intervalId = window.setInterval(updateTimer, 1000);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [holdExpiresAt]);
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
 
-  const removeItemFromServer = () => {
-    fetch(apiUrl('/removeAll'), {
+  const completePurchase = () => {
+    fetch(apiUrl('/purchase'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ cart }),
-    }).catch((error) => {
-      console.error('Error removing item:', error);
+      body: JSON.stringify({ sessionId }),
+    })
+      .then(async (result) => {
+        if (!result.ok) {
+          throw new Error('Unable to complete purchase');
+        }
+        window.location.assign('/completion');
+      })
+      .catch((error) => {
+        console.error('Error completing purchase:', error);
+        window.alert('Unable to complete purchase. Please try again.');
     });
   };
+
+  const minutesLeft = Math.floor(remainingMs / 60_000);
+  const secondsLeft = Math.floor((remainingMs % 60_000) / 1000);
+  const timeLeft = `${minutesLeft}:${secondsLeft.toString().padStart(2, '0')}`;
 
   return (
     <Box>
@@ -242,6 +307,9 @@ export default function PaymentPage({ cart, boxIsFull }: PaymentPageProps) {
         <b>{cart.length}</b> {cart.length === 1 ? 'item' : 'items'} <br /> It
         can be shipped anywhere in America in exchange for $20.
       </div>
+      <CountdownNotice>
+        Checkout timer: <b>{timeLeft}</b> remaining to secure your items.
+      </CountdownNotice>
 
       <CutWidth>
         <Label>Street Name</Label>
@@ -297,10 +365,10 @@ export default function PaymentPage({ cart, boxIsFull }: PaymentPageProps) {
         )}
         <button
           onClick={() => {
-            removeItemFromServer();
+            completePurchase();
           }}
         >
-          pretend buy
+          Complete purchase
         </button>
       </ButtonWrapper>
     </Box>
